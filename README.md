@@ -160,8 +160,6 @@ cat >> /etc/sysctl.conf << EOF
 net.ipv4.ip_nonlocal_bind = 1
 EOF
 sysctl -p
-三台master都要裝haproxy
-三台master配置文件都一樣 VIP port 8443
 
 #haproxy installation
 sudo apt install haproxy -y
@@ -186,12 +184,7 @@ sudo netstat -lntp
 
 #check ip port connect
 nc -v {ip} {port}
-nc -v 192.168.210.20 8443
 
-#測試
-首先確定master1 haproxy status work
-連上後可以查看ip, 以配置可以看見 192.168.210.20:8443
-每台都要連線測試, Connection to 192.168.210.20 8443 port [tcp/*] succeeded! , 表示連線成功
 ```
 
 ## 安裝, 配置及測試 k8s
