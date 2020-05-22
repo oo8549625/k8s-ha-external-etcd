@@ -16,7 +16,7 @@
 
 ## 確定關閉所有防火牆
 
-## external etcd
+## external etcd(docker, kubeadm, kubelet)
 
 1. Configure the kubelet to be a service manager for etcd.
 Since etcd was created first, you must override the service priority by creating a new unit file that has higher precedence than the kubeadm-provided kubelet unit file.(三台etcd都配置)
@@ -182,27 +182,25 @@ nc -v {ip} {port}
 
 ```
 
-## 安裝, 配置及測試 k8s
+## 安裝, 配置及測試 k8s(docker, kubelet, kubeadm, kubectl, ipvs)
+
+- 複製etcd的三個檔案到kubeadm init的control plane
+
 ```
-#keepalived和haproxy配置完成後,跑流程
-首先全部的node都跑k8s.sh,
-master1 配置kubeadm init
-master2 join control plane
-master3 join control plane
-node1 join node
-node2 join node
-node3 join node
+export CONTROL_PLANE="ubuntu@192.168.210.4"
+scp /etc/kubernetes/pki/etcd/ca.crt "${CONTROL_PLANE}":
+scp /etc/kubernetes/pki/apiserver-etcd-client.crt "${CONTROL_PLANE}":
+scp /etc/kubernetes/pki/apiserver-etcd-client.key "${CONTROL_PLANE}":
+```
 
-#k8s.sh (script包含docker, helm, kubectl, kubeadm, kubelet 以及 ipvs)
-sudo bash k8s.sh
+- master1 配置kubeadm init
+- master2 join control plane
+- master3 join control plane
+- worker1 join node
+- worker2 join node
+- worker3 join node
 
-#gitlab-runner installation(可選擇)
-sudo apt install gitlab-runner -y
-sudo usermod -aG gitlab-runner docker
-
-#kubeadm configuration (script包含kubeadm init, gitlab-runner權限, pod網路, taint, helm repo add, admin clusterrole, kubelet control 權限)
-#須將kudeadm.yaml一同放入同個dir
-sudo bash kubeadm-conf.sh
+```
 
 #create cert (生成新的cert key)
 kubeadm alpha certs certificate-key
@@ -223,12 +221,16 @@ kubeadm join 203.145.220.182:6443 --token uyx7zg.aaer3ibuc2bgucaq \
   --discovery-token-ca-cert-hash sha256:752530a95fc9bc66f7e54bac97bb04d66f79d347afbb2c6c351f95948a7742f8 \
 
 
-#測試
 ```
 
 
 ### Options
 ```
+#kubeadm join超時問題
+sudo swapoff -a
+sudo kubeadm reset  
+sudo systemctl daemon-reload && sudo systemctl restart kubelet 
+
 #調整kubernetes nodePort range
 sudo nano /etc/kubernetes/manifests/kube-apiserver.yaml
 command:
@@ -247,14 +249,26 @@ featureGates:
   CSIMigration: false
 sudo systemctl restart kubelet
 
-#haproxy cannot bind socket
+#Error haproxy cannot bind socket
 sudo nano  /etc/sysctl.conf
 添加：net.ipv4.ip_nonlocal_bind=1
 
-#master node join control plane error
+#Error Throttling request took 1.177626024s, request: GET:https://192.168.210.21:6443/apis/coordination.k8s.io/v1?timeout=32s
+#user ownership for kubectl
+sudo chown -R $USER $HOME/.kube
 
-#worker node join超時問題
-sudo swapoff -a
-sudo kubeadm reset  
-sudo systemctl daemon-reload && sudo systemctl restart kubelet 
+#更換pod網路,刪除舊有cni
+sudo rm -rf /etc/cni
+
+#修改coreDNS replica
+kubectl edit deployment.apps/coredns -n kube-system
+replica 2-->6
+
+# admin clusterrole
+kubectl create clusterrolebinding <clusterrolebinding name> --clusterrole <clusterrole name> --serviceaccount=<namespace>:<name>
+kubectl create clusterrolebinding default-admin --clusterrole cluster-admin --serviceaccount=default:default
+
+#let master node work
+#kubernetes出于安全考量默認情况下無法在master節點上部署pod, 以下指令允许master節點部署pod
+kubectl taint nodes --all node-role.kubernetes.io/master-
 ```
