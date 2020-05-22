@@ -16,7 +16,12 @@
 
 ## 確定關閉所有防火牆
 
-## 
+## external etcd
+
+1. Configure the kubelet to be a service manager for etcd.
+Since etcd was created first, you must override the service priority by creating a new unit file that has higher precedence than the kubeadm-provided kubelet unit file.
+
+
 
 ## 安裝, 配置及測試 haproxy
 ```
