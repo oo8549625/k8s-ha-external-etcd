@@ -155,11 +155,6 @@ https://[HOST2 IP]:2379 is healthy: successfully committed proposal: took = 35.9
 
 ## 安裝, 配置及測試 haproxy
 ```
-#keepalived配置完成後,安裝haproxy
-cat >> /etc/sysctl.conf << EOF
-net.ipv4.ip_nonlocal_bind = 1
-EOF
-sysctl -p
 
 #haproxy installation
 sudo apt install haproxy -y
